@@ -54,3 +54,23 @@ class TestNomadRunLauncher:
 
         assert mock_nomad_client.dispatch_job.call_count == 1
         assert mock_nomad_client.dispatch_job.call_args_list[0][0][0] == "test_job"
+
+    def test_launch_run_with_job_id_override(self, instance, workspace, run, mock_nomad_client):
+        instance.run_launcher.nomad_client = mock_nomad_client
+        instance.run_launcher.job_id_overrides = {"crm-pipeline": "crm-pipeline-run"}
+        instance.add_run_tags(run.run_id, {"dagster/code_location": "crm-pipeline"})
+
+        instance.launch_run(run.run_id, workspace)
+
+        assert mock_nomad_client.dispatch_job.call_count == 1
+        assert mock_nomad_client.dispatch_job.call_args_list[0][0][0] == "crm-pipeline-run"
+
+    def test_launch_run_falls_back_to_default_job_id(self, instance, workspace, run, mock_nomad_client):
+        instance.run_launcher.nomad_client = mock_nomad_client
+        instance.run_launcher.job_id_overrides = {"crm-pipeline": "crm-pipeline-run"}
+        instance.add_run_tags(run.run_id, {"dagster/code_location": "other-location"})
+
+        instance.launch_run(run.run_id, workspace)
+
+        assert mock_nomad_client.dispatch_job.call_count == 1
+        assert mock_nomad_client.dispatch_job.call_args_list[0][0][0] == "test_job"
