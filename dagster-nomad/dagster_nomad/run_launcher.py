@@ -79,8 +79,12 @@ class NomadClient(httpx.Client):
         res.raise_for_status()
 
         data = res.json()
-        state: str = data[0]["TaskStates"]["server"]["State"]
-        failed: bool = data[0]["TaskStates"]["server"]["Failed"]
+        if not data or "TaskStates" not in data[0] or not data[0]["TaskStates"]:
+            return "pending", False
+        task_states = data[0]["TaskStates"]
+        task = next(iter(task_states.values()))
+        state: str = task["State"]
+        failed: bool = task["Failed"]
 
         return state, failed
 
@@ -248,7 +252,7 @@ class NomadRunLauncher(RunLauncher[T_DagsterInstance], ConfigurableClass):
 
         try:
             state, failed = self.nomad_client.get_job_status(dispatched_job_id)
-        except httpx.HTTPError:
+        except (httpx.HTTPError, KeyError, IndexError):
             return CheckRunHealthResult(WorkerStatus.NOT_FOUND)
 
         match (state, failed):
